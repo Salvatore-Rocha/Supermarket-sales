@@ -18,6 +18,7 @@ layout = go.Layout(template= pio.templates["flatly"])
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 
 # File
-market_sales = pd.read_csv("https://github.com/Salvatore-Rocha/Supermarket-sales/blob/002314ff6501373a489db96a35c9bd205fdbff8b/supermarket_sales.csv")
+market_sales = pd.read_csv("supermarket_sales.csv")
 
 print(market_sales.head())
+
