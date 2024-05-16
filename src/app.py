@@ -7,9 +7,12 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import pandas_datareader.data as web
 import datetime as dt
-import dash_player as dp
 from dash_bootstrap_templates import load_figure_template
 import plotly.io as pio
+from sklearn.ensemble import RandomForestRegressor
+from dash.exceptions import PreventUpdate
+from sklearn.model_selection import train_test_split, learning_curve, validation_curve
+import numpy as np
 
 # Create a Plotly layout with the desired dbc template
 load_figure_template(["flatly", "flatly_dark"])
@@ -41,7 +44,7 @@ sources = html.Div(
                 ),
                 html.A(
                     "Code (.py file) |   ",
-                    href="",
+                    href="https://github.com/Salvatore-Rocha/Supermarket-sales/blob/ccf86342f74f3942f47f54767a25eaeb901c36f0/src/app.py",
                     target="_blank",
                 ),
             ]
@@ -52,27 +55,27 @@ sources = html.Div(
 def create_card(title,City):
     card = dbc.Card(
         dbc.CardBody([
-                html.H3([
+                html.H5([
                         html.I(className="bi bi-bank me-2"), 
                             title
                         ]),
-                html.H5(
+                html.H6(
                         children= {}, 
                         id= f"val_card_{title[0:4]}_{City}"
                         ),
-                html.H6(
+                html.P(
                         html.I(children = {},
                                 id= f"subt_card_{title[0:4]}_{City}", 
                                 className="bi bi-caret-up-fill text-success")
                         ),
                     ]),
         className="text-center",
-        style={"width": "18rem"})   
+        style={"width": "14rem"})   
     return card 
 
 def create_tab(City):
     tab = dbc.Tab([ 
-            html.H1(
+            html.H3(
                     children=f"{City}",
                     id=f"tab_{City}"
                     ), 
@@ -86,16 +89,17 @@ def create_tab(City):
                     html.Br(),
                     dbc.Row([ #Barplot-date + Radio Items
                             dbc.Col([
-                                html.H5("Select a month to see the sales behaviour"),
+                                html.P("Choose a month to view a metric's performance"),
                                 dcc.RadioItems(id=f"radio_month_{City}",
                                             options= ['January', 'February','March', "All"], 
                                             value='February', 
                                             inline=True,
                                             className="text-success",
-                                            inputStyle={"margin-left":"6px", "margin-right": "2px"})
+                                            inputStyle={"margin-left":"6px", "margin-right": "2px"},
+                                            style={'fontSize': '12px'})
                                 ],width=6 ),
                             dbc.Col([
-                                html.H5("Select what you wanna see"),
+                                html.P("Select a metric"),
                                 dcc.RadioItems(id =f"radio_types_{City}",
                                         options= ['Customers', 
                                                     "Sales, Gross Income & COGS",
@@ -103,7 +107,8 @@ def create_tab(City):
                                         value= 'Sales, Gross Income & COGS', 
                                         inline=False,
                                         className="text-success",
-                                        inputStyle={"margin-left":"6px", "margin-right": "2px"})
+                                        inputStyle={"margin-left":"6px", "margin-right": "2px"},
+                                        style={'fontSize': '12px'})
                                 ],width=6 ),
                             dcc.Graph(id=f"barplot_for_{City}", 
                                     figure= {} )
@@ -114,7 +119,7 @@ def create_tab(City):
                                         id=f"product_line_totals_{City}", 
                                         figure= {}
                                         ), 
-                                 style={'marginLeft': '-50px','marginRight': '-80px'}
+                                 style={'marginLeft': '-50px','marginRight': '-80px','marginTop': '-35px'}
                                  ),
                         ],width=3),
                 dbc.Col([ #Last column plts
@@ -138,7 +143,7 @@ def create_tab(City):
                                 ),
                         ],width=3, className="my-0")
                     ])       
-                ], label=f"{City}",)
+                ], label=f"{City}")
     return tab
 
 def calc_cards_vals(month,city):
@@ -169,7 +174,7 @@ def calc_cards_vals(month,city):
            "${:,.0f}".format(Cogs), text_cogs, \
            Customers, text_custo
 
-cmap_product_lines = { #If we dont use a color map, the plots will assing arbitrary colors each time to each plot
+cmap_product_lines = { #If we dont use a color map, the plots will assing arbitrary colors to each cat every time they update
 'Health and beauty': "#18BC9C" ,
 'Electronic accessories': "#3498DB" ,
 'Home and lifestyle': "#2ECC71",
@@ -274,14 +279,14 @@ def make_product_line_tree(month,city):
     fig = px.treemap(dff, 
                  path=["Product line"], 
                  values='Total',
-                 height=850,
+                 height=800,
                  color = "Product line",
                  color_discrete_map= cmap_product_lines
                  )
     fig.update_traces(textinfo='label+value',
                       texttemplate='%{label} <br>$%{value:,.0f}',
                       hovertemplate=' Line: %{label} <br> Total Sales: $%{value:,.0f}')
-    fig.update_layout(title=dict(text=f"Line Products Total Sales - {month}",font=dict(size=20),x=0.5, y=0.95),
+    fig.update_layout(title=dict(text=f"<i>Line Products Total Sales</i> - {month}",font=dict(size=15, color ="#34495E"),x=0.5, y=0.95),
                       )
     
     return fig
@@ -291,7 +296,6 @@ def make_count_type_bar(month,city,column_name):
         _dff = market_sales
     else:
         _dff = market_sales[market_sales["City"] == city]
-    
     if month == "All":
         dff = _dff
         month = "Q1"
@@ -312,7 +316,7 @@ def make_count_type_bar(month,city,column_name):
              text="Text",
              barmode='stack',
              )
-    fig.update_layout(legend=dict(orientation='h', yanchor='bottom', xanchor='right',y=1.02, x=1),
+    fig.update_layout(legend=dict(title_font_size=12,orientation='h', yanchor='bottom', xanchor='right',y=1.02, x=1),
                       height=250)
     fig.update_traces(insidetextanchor='middle',
                       hovertemplate='Count %{value:,.0f}')
@@ -351,17 +355,264 @@ def make_circles_gender_payment_city(month,city):
                                   x=1, y=-0.1))
     return fig
 
-def make_plots_last_column(month,city):
-    return make_count_type_bar(month,city,"Customer type"), \
-           make_count_type_bar(month,city,"Gender"),\
-           make_circles_gender_payment_city(month,city)
-   
+def categorize_hour(hour):
+    if 10 <= hour < 13:
+        return 'Morning'
+    elif 13 <= hour < 17:
+        return 'Evening'
+    else:
+        return 'Night'
+
+def data_encoding(_columns, target_value):
+    #Columns: 'Day_of_week', 'Hour', 'Gender', 'Product line', 'City', 'Customer type', 'Payment'
+    dff = market_sales.copy()
+
+    if 'Date' in _columns:
+        # Extract day of the week from 'Date' column
+        dff['Date'] = dff['Date'].dt.day_name()
+    
+    if "Time" in _columns:
+        # Convert 'Hour' column to datetime format and extract hour and apply categorization function 
+        dff['Time'] = pd.to_datetime(dff['Time'], format='%H:%M').dt.hour
+        dff['Time'] = dff['Time'].apply(categorize_hour)
+    
+    dff = pd.get_dummies(dff, columns= _columns)
+    
+    dff = dff.iloc[:,17-len(_columns):]
+    dff[target_value] = market_sales[target_value]
+    
+    return dff
+
+def get_text_color(color):
+    # Calculate the luminance of the color
+    r, g, b = tuple(int(color[i:i+2], 16) / 255 for i in (1, 3, 5))
+    luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    
+    return 'white' if luminance < 0.5 else 'black'
+
+def make_ftimp_analysis(df,target):
+    X = df.iloc[:,:-1]  # Features
+    y = df[target] # Target variable
+
+    rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
+    rf_regressor.fit(X, y)
+
+    # Get feature importances and plotting them
+    feature_importances = rf_regressor.feature_importances_
+    feature_importance_df = pd.DataFrame({'Feature': X.columns, 'Importance': feature_importances})
+    feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=True)
+
+    fig = go.Figure()
+    #Inverted colors; clearer for lower, darker for higher
+    sequential_colors = px.colors.sequential.Plasma[::-1]
+    
+    #textfont: Dark text for bright and white text for dark background colors
+    fig.add_trace(go.Bar(
+        y=feature_importance_df['Feature'],
+        x=feature_importance_df['Importance'],
+        orientation='h',
+        hovertemplate='Feature %{y}<br> Value: %{x:.4f}<extra></extra>',
+        text=feature_importance_df['Importance'].round(4),  
+        textposition='inside',  
+        insidetextanchor='end',
+        marker=dict(color=feature_importance_df['Importance'], colorscale=sequential_colors), 
+        textfont=dict(color=[get_text_color(color) for color in sequential_colors])
+    ))
+
+    fig.update_layout(
+        title='Feature Importance Analysis',
+        xaxis_title='Feature Importance',
+        yaxis_title='',
+        height=700,
+        hoverlabel=dict(font=dict(color='white'))
+    )
+
+    return fig
+
+def make_eval_predictors(df,target):
+    #Train and test are defined to have a ratio 80-20; RandomForestRegressor is the model used
+    #Validation curve -> Test hyperparameters (n_estimaors) on score, Learning_curve -> Test num of samples on score
+    X = df.iloc[:,:-1]  
+    y = df[target]
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
+    model = RandomForestRegressor()
+
+    # Learning curve data, neg_mean_squared_error is used for convention (maximizing)
+    train_sizes, train_scores, test_scores = learning_curve(model, 
+                                                            X_train, y_train, 
+                                                            cv=5, train_sizes=np.linspace(0.1, 1.0, 10), 
+                                                            scoring='neg_mean_squared_error')
+
+    train_scores_mean = -np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = -np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+
+    print("Learning Done")
+    # Plot the learning curve
+    Fig1 = go.Figure()
+
+    Fig1.add_trace(go.Scatter(
+        x=train_sizes, y=train_scores_mean,
+        mode='lines+markers',
+        name='Training score',
+        line=dict(color='#18BC9C'),
+        hovertemplate='Training Error %{y:.2f}<br> Num.Samples: %{x:.0f}<extra></extra>'
+    ))
+
+    Fig1.add_trace(go.Scatter(
+        x=train_sizes, y=test_scores_mean,
+        mode='lines+markers',
+        name='Cross-validation score',
+        line=dict(color='#3498DB'),
+        hovertemplate='CrossVal Error %{y:.2f}<br> Samples: %{x:.0f}<extra></extra>'
+    ))
+
+    # Fill between the upper and lower bounds of the scores
+    Fig1.add_trace(go.Scatter(
+        x=train_sizes, y=train_scores_mean + train_scores_std,
+        mode='lines',
+        line=dict(width=0),
+        name="",
+        hovertemplate='<extra></extra>',
+        showlegend=False
+    ))
+
+    Fig1.add_trace(go.Scatter(
+        x=train_sizes, y=train_scores_mean - train_scores_std,
+        mode='lines',
+        line=dict(width=0),
+        name="",
+        hovertemplate='<extra></extra>',
+        fill='tonexty',
+        showlegend=False,
+        fillcolor='rgba(24, 188, 156, 0.2)'
+    ))
+
+    Fig1.add_trace(go.Scatter(
+        x=train_sizes, y=test_scores_mean + test_scores_std,
+        mode='lines',
+        name="",
+        hovertemplate='<extra></extra>',
+        line=dict(width=0),
+        showlegend=False
+    ))
+
+    Fig1.add_trace(go.Scatter(
+        x=train_sizes, y=test_scores_mean - test_scores_std,
+        mode='lines',
+        line=dict(width=0),
+        fill='tonexty',
+        name="",
+        hovertemplate='<extra></extra>',
+        showlegend=False,
+        fillcolor='rgba(52, 152, 219, 0.2)'
+    ))
+
+    Fig1.update_layout(
+        title={'text': '<i>Learning Curve</i>', 'font': {'size': 13, "color":"#34495E"}},
+        yaxis_title='Mean Squared Error',
+        xaxis_title='Sample Size',
+        xaxis_title_font=dict(size=10),
+        legend=dict(orientation='h', yanchor='bottom', xanchor='right',y=1.02, x=1),
+        showlegend=True,
+        height = 350
+                    )
+
+
+    # Validation curve data
+    param_range = np.arange(1, 201, 20)
+    train_scores, test_scores = validation_curve(
+        model, X_train, y_train, param_name="n_estimators", param_range=param_range,
+        cv=5, scoring="neg_mean_squared_error")
+    print("Validation done")
+    # Calculate the mean and standard deviation for train and test scores
+    train_scores_mean = -np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = -np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+    
+    # Plot the validation curve
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=param_range, y=train_scores_mean,
+        mode='lines+markers',
+        name='Training score',
+        line=dict(color='#669BBC'),
+        hovertemplate='Training Error %{y:.2f}<br> Num.Estimators: %{x:.0f}<extra></extra>'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=param_range, y=test_scores_mean,
+        mode='lines+markers',
+        name='Cross-validation score',
+        line=dict(color='#F39C12'),
+        hovertemplate='CrossVal Error %{y:.2f}<br> Samples: %{x:.0f}<extra></extra>'
+    ))
+
+    # Fill between the upper and lower bounds of the scores
+    fig.add_trace(go.Scatter(
+        x=param_range, y=train_scores_mean + train_scores_std,
+        mode='lines',
+        name="",
+        hovertemplate='<extra></extra>',
+        line=dict(width=0),
+        showlegend=False
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=param_range, y=train_scores_mean - train_scores_std,
+        mode='lines',
+        line=dict(width=0),
+        name="",
+        hovertemplate='<extra></extra>',
+        fill='tonexty',
+        showlegend=False,
+        fillcolor='rgba(102, 155, 188, 0.2)'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=param_range, y=test_scores_mean + test_scores_std,
+        mode='lines',
+        name="",
+        hovertemplate='<extra></extra>',
+        line=dict(width=0),
+        showlegend=False
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=param_range, y=test_scores_mean - test_scores_std,
+        mode='lines',
+        line=dict(width=0),
+        name="",
+        hovertemplate='<extra></extra>',
+        fill='tonexty',
+        showlegend=False,
+        fillcolor='rgba(243, 156, 18, 0.2)'
+    ))
+
+    fig.update_layout(
+        title={'text': '<i>Validation Curve</i>', 'font': {'size': 13, "color":"#34495E"}},
+        xaxis_title='<i>Number of Estimators</i>',
+        xaxis_title_font=dict(size=10),
+        yaxis_title='Mean Squared Error',
+        legend=dict(orientation='h', yanchor='bottom', xanchor='right',y=1.02, x=1),
+        showlegend=True,
+        height = 350
+                    )
+    
+    print("Exiting...")
+    return fig, Fig1
+     
 #The branches are located in Yangon, Naypyitaw, Mandalay
 tab1 = create_tab("Yangon")
 tab2 = create_tab("Naypyitaw")
 tab3 = create_tab("Mandalay")
 tab4 = create_tab("All")
 tab5 = dbc.Tab([ 
+                html.Br(),
                 dbc.Row([
                     dbc.Col([
                         html.H1("Title"),
@@ -369,26 +620,65 @@ tab5 = dbc.Tab([
                             ]
                         ,width= 3),
                     dbc.Col([
-                        dbc.Row([
+                        html.P("⚠️ Each time a value changes in the dropdown list or the radio items, it will upate the model and plots", 
+                                         className="text-success",
+                                         style={'text-align': 'left', 'font-size': '12px'}),
+                        dbc.Row([ #Dpdn, Radio & button
                             dbc.Col([
-                                dcc.Dropdown(id= "dpdn_left", 
-                                             options = ['New York City', 'Montreal', 'Paris', 'London'],
-                                             value= "London",
+                                html.P("Select the variables to study (must be at least one)", 
+                                        className="text-success",
+                                        style={'font-style': 'italic'}),
+                                dcc.Dropdown(id= "ftimp_dpdn_vars", 
+                                             options = ['Date', 'Time', 'Gender', 'Product line', \
+                                                        'City', 'Customer type', 'Payment'],
+                                             value= ['Date', 'Time', 'Gender', 'Product line'],
+                                             multi = True,
+                                             className="text-success"
                                              )
                                     ]),
                             dbc.Col([
-                                dcc.Dropdown(id= "dpdn_right", 
-                                             options = ['New York City', 'Montreal', 'Paris', 'London'],
-                                             value= "London",
+                                html.P("Select the target to analyze", 
+                                        className="text-success",
+                                        style={'font-style': 'italic'}),
+                                dcc.RadioItems(id= "ftimp_radio_target", 
+                                             options = ['Total', 'Rating'],
+                                             value= "Rating",
+                                             className="text-success",
+                                             style={'fontSize': '13px'}
                                              )
-                                    ])
+                                    ]),
                                 ]),
-                        dcc.Graph(id = "sankey_plot",
-                                  figure = {}                            
-                            )
+                        dbc.Row([ # ML Plots
+                            dbc.Col([ #Feature Importance
+                                dcc.Graph(id = "feature_importance_plot",
+                                         figure = {}                            
+                                          )
+                                    ], width= 7,className="my-0"),
+                            dbc.Col([#Val & Training Curves
+                                  html.P("↓ Validation & Training Curves ↓", 
+                                         className="text-success",
+                                         style={'text-align': 'center'}),
+                                  dcc.Loading(id="loading-1",
+                                            type="default",
+                                            children= dcc.Graph(id = "validation_curve",
+                                                          figure = {}                            
+                                                         ),
+                                            ),
+                                    html.Div(
+                                        dcc.Loading(id="loading-2",
+                                            type="default",
+                                            children= dcc.Graph(id = "learning_curve",
+                                                          figure = {}                            
+                                                         ),
+                                                    ),   
+                                style={'marginTop': '-20px'}
+                                ),                 
+                                    ], width= 5,className="my-0")
+                                ]),
+
                             ])
                 ])
-                ], label="Dynamic Connections",)
+                ], label="Rating and Sales Prediction",)
 tabs = dbc.Card(dbc.Tabs([tab1, tab2, tab3, tab4, tab5], style={'font-style': 'italic'}))
 
 
@@ -458,7 +748,7 @@ def make_treemap(month,city):
     )
 
 def create_customers_plots(month, city):
-    return make_plots_last_column(month,city)
+    return make_count_type_bar(month,city,"Customer type"), make_count_type_bar(month,city,"Gender"), make_circles_gender_payment_city(month,city)
 
 
 #################################################################################################
@@ -512,7 +802,7 @@ def make_treemap(month,city):
     )
 
 def create_customers_plots(month, city):
-    return make_plots_last_column(month,city)
+    return make_count_type_bar(month,city,"Customer type"), make_count_type_bar(month,city,"Gender"), make_circles_gender_payment_city(month,city)
 
 #################################################################################################
 #Barplot Naypyitaw
@@ -566,7 +856,8 @@ def make_treemap(month,city):
     )
 
 def create_customers_plots(month, city):
-    return make_plots_last_column(month,city)
+    return make_count_type_bar(month,city,"Customer type"), make_count_type_bar(month,city,"Gender"), make_circles_gender_payment_city(month,city)
+
 #################################################################################################
 #Barplot All
 _City = "All"
@@ -619,7 +910,41 @@ def make_treemap(month,city):
     )
 
 def create_customers_plots(month, city):
-    return make_plots_last_column(month,city)
+    return make_count_type_bar(month,city,"Customer type"), make_count_type_bar(month,city,"Gender"), make_circles_gender_payment_city(month,city)
+
+####################################################################################
+
+#Feature Importance Bar plot
+@callback(
+    Output("feature_importance_plot", "figure"),
+    Input("ftimp_dpdn_vars","value"),
+    Input("ftimp_radio_target","value"),
+    )
+
+def create_ftimp_plot(cat_columns, target):
+    if cat_columns == []:
+        raise PreventUpdate("Warning: It can't be empty, choose one.")
+    
+    dff = data_encoding(cat_columns, target)
+    return make_ftimp_analysis(dff,target) 
+
+#make_ftimp_analysis(data_encoding(cat_columns, target),target)
+
+#Curves
+@callback(
+    Output("validation_curve", "figure"),
+    Output("learning_curve","figure"),
+    Input("ftimp_dpdn_vars","value"),
+    Input("ftimp_radio_target","value")
+    ) 
+
+def create_preductors_plot(cat_columns, target):
+    if cat_columns == []:
+        raise PreventUpdate("Warning: It can't be empty, choose one.")
+    
+    
+    dff = data_encoding(cat_columns, target)
+    return make_eval_predictors(dff,target)
 
 
 if __name__=='__main__':
