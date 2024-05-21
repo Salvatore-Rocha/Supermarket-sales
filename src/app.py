@@ -1,7 +1,7 @@
 import dash
 import plotly.graph_objects as go
 from dash import dcc, html, callback
-from dash.dependencies import Output, Input
+from dash.dependencies import Output, Input, State, MATCH, ALL
 import plotly.express as px 
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -13,6 +13,9 @@ from sklearn.ensemble import RandomForestRegressor
 from dash.exceptions import PreventUpdate
 from sklearn.model_selection import train_test_split, learning_curve, validation_curve
 import numpy as np
+import joblib
+import base64
+import io
 
 # Create a Plotly layout with the desired dbc template
 load_figure_template(["flatly", "flatly_dark"])
@@ -390,6 +393,17 @@ def get_text_color(color):
     
     return 'white' if luminance < 0.5 else 'black'
 
+def serialize_model(model):
+    buffer = io.BytesIO()
+    joblib.dump(model, buffer)
+    model_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    return model_str
+
+def deserialize_model(model_str):
+    buffer = io.BytesIO(base64.b64decode(model_str.encode('utf-8')))
+    model = joblib.load(buffer)
+    return model
+
 def make_ftimp_analysis(df,target):
     X = df.iloc[:,:-1]  # Features
     y = df[target] # Target variable
@@ -427,7 +441,7 @@ def make_ftimp_analysis(df,target):
         hoverlabel=dict(font=dict(color='white'))
     )
 
-    return fig
+    return serialize_model(rf_regressor), fig
 
 def make_eval_predictors(df,target):
     #Train and test are defined to have a ratio 80-20; RandomForestRegressor is the model used
@@ -605,6 +619,19 @@ def make_eval_predictors(df,target):
     
     print("Exiting...")
     return fig, Fig1
+
+variables = {
+    'City': ['City_Mandalay', 'City_Naypyitaw', 'City_Yangon'], 
+    'Customer type': ['Customer type_Member', 'Customer type_Normal'], 
+    'Gender': ['Gender_Female', 'Gender_Male'], 
+    'Product line': ['Product line_Electronic accessories',
+                     'Product line_Fashion accessories', 'Product line_Food and beverages',
+                     'Product line_Health and beauty', 'Product line_Home and lifestyle',
+                     'Product line_Sports and travel'], 
+    'Date': ['Date_Friday','Date_Monday','Date_Saturday','Date_Sunday','Date_Thursday', 'Date_Tuesday', 'Date_Wednesday'], 
+    'Time': ['Time_Evening','Time_Morning','Time_Night'], 
+    'Payment': ['Payment_Cash', 'Payment_Credit card', 'Payment_Ewallet']
+}
      
 #The branches are located in Yangon, Naypyitaw, Mandalay
 tab1 = create_tab("Yangon")
@@ -615,19 +642,35 @@ tab5 = dbc.Tab([
                 html.Br(),
                 dbc.Row([
                     dbc.Col([
-                        html.H1("Title"),
-                        html.P("Text")
+                        html.H3("On-the-Fly: Feature Impact and Model Analysis", 
+                                className="text-success",
+                                style={"font-weight": "bold"}),
+                        html.P(["This tab utilizes a Random Forest Regressor technique to analize feature importance, visualize training and validation curves, \
+                            and input predictor values for making predictions. The feature importance section tells us which variables have the biggest impact on \
+                            the model's output (i.e. when making predictions); the curves provide insights into model performance during training and validation. \
+                            The dropdown menus below adjust automatically based on variable selection.", 
+                            dcc.Markdown("**Note that predictions will only be available once the training and validation plots are visible**")],
+                            style={"font-size": "12px", "text-align": "justify", "font-style": "italic"}),
+                        html.Div(children={}, id='dropdown-container'),
+                        dbc.Button(children = {}, id="button", disabled=True, n_clicks=0),
+                        html.Div(id='output-vector'),
+                        html.Hr(),
+                        html.Div("Predictors:"),
+                        html.Div(id="output-variables"),
+                        dcc.Store(id='store-trained-model'),
                             ]
                         ,width= 3),
                     dbc.Col([
-                        html.P("⚠️ Each time a value changes in the dropdown list or the radio items, it will upate the model and plots", 
-                                         className="text-success",
-                                         style={'text-align': 'left', 'font-size': '12px'}),
+                        dbc.Row(style={"height": "60px"}),
+                        html.Hr(),
                         dbc.Row([ #Dpdn, Radio & button
                             dbc.Col([
-                                html.P("Select the variables to study (must be at least one)", 
+                                html.P("Select the variables to study", 
                                         className="text-success",
                                         style={'font-style': 'italic'}),
+                                html.P("⚠️ Every time a value in the dropdown list or radio items changes, the model needs to be updated before it can be used to make a prediction", 
+                                         className="text-success",
+                                         style={'text-align': 'left', 'font-size': '10px'}),
                                 dcc.Dropdown(id= "ftimp_dpdn_vars", 
                                              options = ['Date', 'Time', 'Gender', 'Product line', \
                                                         'City', 'Customer type', 'Payment'],
@@ -655,6 +698,10 @@ tab5 = dbc.Tab([
                                           )
                                     ], width= 7,className="my-0"),
                             dbc.Col([#Val & Training Curves
+                                  html.Div([
+                                        dbc.Button("Update Model ", id="update-button", color="primary")],
+                                        className="d-grid gap-2",
+                                          ),
                                   html.P("↓ Validation & Training Curves ↓", 
                                          className="text-success",
                                          style={'text-align': 'center'}),
@@ -670,9 +717,9 @@ tab5 = dbc.Tab([
                                             children= dcc.Graph(id = "learning_curve",
                                                           figure = {}                            
                                                          ),
-                                                    ),   
-                                style={'marginTop': '-20px'}
-                                ),                 
+                                                    ),
+                                            style={'marginTop': '-20px'}
+                                            ),            
                                     ], width= 5,className="my-0")
                                 ]),
 
@@ -914,37 +961,126 @@ def create_customers_plots(month, city):
 
 ####################################################################################
 
-#Feature Importance Bar plot
 @callback(
+    Output("store-trained-model", "data"),
     Output("feature_importance_plot", "figure"),
-    Input("ftimp_dpdn_vars","value"),
-    Input("ftimp_radio_target","value"),
-    )
+    Input("update-button", "n_clicks"),
+    State("ftimp_dpdn_vars", "value"),
+    State("ftimp_radio_target", "value"),
+)
+def create_ftimp_plot(n_clicks, cat_columns, target):
+    ctx = dash.callback_context
+    # if not ctx.triggered:
+    #     raise PreventUpdate
 
-def create_ftimp_plot(cat_columns, target):
-    if cat_columns == []:
-        raise PreventUpdate("Warning: It can't be empty, choose one.")
-    
+    # if n_clicks is None:
+    #     raise PreventUpdate
+
+    if cat_columns is []:
+        raise PreventUpdate()
+
     dff = data_encoding(cat_columns, target)
-    return make_ftimp_analysis(dff,target) 
+    return make_ftimp_analysis(dff, target)
 
-#make_ftimp_analysis(data_encoding(cat_columns, target),target)
-
-#Curves
+# Curves
 @callback(
     Output("validation_curve", "figure"),
-    Output("learning_curve","figure"),
-    Input("ftimp_dpdn_vars","value"),
-    Input("ftimp_radio_target","value")
-    ) 
+    Output("learning_curve", "figure"),
+    Input("update-button", "n_clicks"),
+    State("ftimp_dpdn_vars", "value"),
+    State("ftimp_radio_target", "value"),
+    State("store-trained-model", "data"),
+)
+def create_predictors_plot(n_clicks, cat_columns, target, stored_data):
+    # ctx = dash.callback_context
+    # if not ctx.triggered:
+    #     raise PreventUpdate
 
-def create_preductors_plot(cat_columns, target):
-    if cat_columns == []:
-        raise PreventUpdate("Warning: It can't be empty, choose one.")
-    
-    
+    # if n_clicks is None:
+    #     raise PreventUpdate
+
+    if cat_columns is []:
+        raise PreventUpdate()
+
+
     dff = data_encoding(cat_columns, target)
-    return make_eval_predictors(dff,target)
+    return make_eval_predictors(dff, target)
+
+######################
+@callback(
+    Output('dropdown-container', 'children'),
+    Input('ftimp_dpdn_vars', 'value')
+)
+def update_dropdowns(selected_keys):
+    if not selected_keys:
+        raise PreventUpdate
+
+    dropdowns = []
+    for key in selected_keys:
+        dropdowns.append(html.Label(key))
+        dropdowns.append(dcc.Dropdown(
+            options=[{'label': i, 'value': i} for i in variables[key]],
+            id={'type': 'dynamic-dropdown', 'index': key},
+            multi=False
+        ))
+
+    return dropdowns
+
+@callback(
+    Output('button', 'disabled'),
+    Output('button', 'children'),
+    [Input('ftimp_dpdn_vars', 'value'),
+     Input("ftimp_radio_target","value"),
+     Input({'type': 'dynamic-dropdown', 'index': ALL}, 'value')]
+)
+def update_button_state(selected_keys, target, selected_values):
+    if not selected_keys or None in selected_values:
+        return True, f"Predict a {target}"
+    return False, f"Predict a {target}"
+
+@callback(
+    [Output('output-vector', 'children'),
+     Output("output-variables","children"),
+     Output({'type': 'dynamic-dropdown', 'index': ALL}, 'value')],
+    [Input('button', 'n_clicks'),
+     Input("store-trained-model","data"),
+     Input("ftimp_radio_target","value")],
+    [State('ftimp_dpdn_vars', 'value'),
+     State({'type': 'dynamic-dropdown', 'index': ALL}, 'value'),
+     State({'type': 'dynamic-dropdown', 'index': ALL}, 'id')]
+)
+def update_output(n_clicks, model, target, selected_keys, selected_values, selected_ids):
+    if not n_clicks:
+        raise PreventUpdate
+
+    if None in selected_values:
+        raise PreventUpdate
+    
+    selected_dict = {item['index']: values for item, values in zip(selected_ids, selected_values)}
+
+    encoded_vector = []
+    user_defined = {}
+    for key in variables.keys():  # iterate through all keys in the fixed order
+        if key in selected_keys:
+            user_defined[key] = []
+            for option in variables[key]:
+                if selected_dict.get(key) and option in selected_dict[key]:
+                    encoded_vector.append(1)
+                    user_defined[key].append(option)
+                else:
+                    encoded_vector.append(0)
+
+    encoded_vector = np.array(encoded_vector).reshape(1, -1)
+    prediction = deserialize_model(model).predict(encoded_vector)
+    
+    # Clear options of all dropdowns
+    cleared_values = [None] * len(selected_values)
+    
+    # Prepare the output message
+    #user_defined_str = ', '.join([f"{key}: {' , '.join(values)}" for key, values in user_defined.items()])
+    user_defined_str = ' | '.join([f"{key}: \"{', '.join(values)}\"" for key, values in user_defined.items()])
+    
+    return f"The {target} prediction is: {prediction.round(2)}", user_defined_str,cleared_values
 
 
 if __name__=='__main__':
