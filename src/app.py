@@ -47,7 +47,7 @@ sources = html.Div(
                 ),
                 html.A(
                     "Code (.py file) |   ",
-                    href="https://github.com/Salvatore-Rocha/Supermarket-sales/blob/ccf86342f74f3942f47f54767a25eaeb901c36f0/src/app.py",
+                    href="https://github.com/Salvatore-Rocha/Supermarket-sales/blob/0344a62c2e0c00b254c93690b5cc873c8cfb77a7/src/app.py",
                     target="_blank",
                 ),
             ]
