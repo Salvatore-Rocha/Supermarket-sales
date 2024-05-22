@@ -620,7 +620,7 @@ def make_eval_predictors(df,target):
     print("Exiting...")
     return fig, Fig1
 
-variables = {
+variables = { #{Key:Values} to create dynamic dropdowns
     'City': ['City_Mandalay', 'City_Naypyitaw', 'City_Yangon'], 
     'Customer type': ['Customer type_Member', 'Customer type_Normal'], 
     'Gender': ['Gender_Female', 'Gender_Male'], 
@@ -634,20 +634,20 @@ variables = {
 }
      
 #The branches are located in Yangon, Naypyitaw, Mandalay
-tab1 = create_tab("Yangon")
-tab2 = create_tab("Naypyitaw")
-tab3 = create_tab("Mandalay")
-tab4 = create_tab("All")
-tab5 = dbc.Tab([ 
+tab2 = create_tab("Yangon")
+tab3 = create_tab("Naypyitaw")
+tab4 = create_tab("Mandalay")
+tab5 = create_tab("All")
+tab1 = dbc.Tab([ 
                 html.Br(),
                 dbc.Row([
-                    dbc.Col([
+                    dbc.Col([ # Main text & Prediction params
                         html.H3("On-the-Fly: Feature Impact and Model Analysis", 
                                 className="text-success",
                                 style={"font-weight": "bold"}),
                         html.P(["This tab utilizes a Random Forest Regressor technique to analize feature importance, visualize training and validation curves, \
-                            and input predictor values for making predictions. The feature importance section tells us which variables have the biggest impact on \
-                            the model's output (i.e. when making predictions); the curves provide insights into model performance during training and validation. \
+                            and input predictor values for making predictions. The feature importance section ranks the variable's impact on the model's output \
+                            (i.e. when making predictions); the curves provide insights into model performance during training and validation. \
                             The dropdown menus below adjust automatically based on variable selection.", 
                             dcc.Markdown("**Note that predictions will only be available once the training and validation plots are visible**")],
                             style={"font-size": "12px", "text-align": "justify", "font-style": "italic"}),
@@ -661,7 +661,7 @@ tab5 = dbc.Tab([
                             ]
                         ,width= 3),
                     dbc.Col([
-                        dbc.Row(style={"height": "60px"}),
+                        dbc.Row(style={"height": "10px"}),
                         html.Hr(),
                         dbc.Row([ #Dpdn, Radio & button
                             dbc.Col([
