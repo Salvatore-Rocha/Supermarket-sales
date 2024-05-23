@@ -42,13 +42,20 @@ sources = html.Div(
                 "Links: ",
                 html.A(
                     "Eduardo's GitHub|  ",
-                    href="https://github.com/Salvatore-Rocha",
+                    href="https://github.com/Salvatore-Rocha/Supermarket-sales",
                     target="_blank",
                 ),
                 html.A(
                     "Code (.py file) |   ",
                     href="https://github.com/Salvatore-Rocha/Supermarket-sales/blob/0344a62c2e0c00b254c93690b5cc873c8cfb77a7/src/app.py",
                     target="_blank",
+                
+                ),
+                html.A(
+                    "Code (Jupyter Notebook (Google Colab) |   ",
+                    href="https://colab.research.google.com/drive/1UX7Bah8Sn1WaajXQQzInp-4RprBnz2qD?usp=sharing",
+                    target="_blank",
+                
                 ),
             ]
         ),
@@ -647,13 +654,16 @@ tab1 = dbc.Tab([
                                 style={"font-weight": "bold"}),
                         html.P(["Welcome to this Supermarket Sales Dashboard! This project is built using the Python library of Dash \
                             and uses the dataset of the historical sales from a supermarket company. This dash app analyzes the records \
-                            from three branches over three months and provides predictions and insights to help users understand store performance better. \
-                            This particular tab utilizes a Random Forest Regressor technique to analize feature importance, visualize training and validation curves, \
+                            from three branches over three months and provides predictions and insights to help users understand \
+                            store performance better. Please refer to the external links at the bottom for more details."]),
+                        html.Br(),    
+                        html.P(["This particular tab utilizes a Random Forest Regressor technique to analize feature importance, visualize training and validation curves, \
                             and input predictor values for making predictions. The feature importance section ranks the variable's impact on the model's output \
                             (i.e. when making predictions); the curves provide insights into model performance during training and validation. \
                             The dropdown menus below adjust automatically based on variable selection.", 
-                            dcc.Markdown("**Note that predictions will only be available once the training and validation plots are visible**")],
-                            style={"font-size": "12px", "text-align": "justify", "font-style": "italic"}),
+                            dcc.Markdown("**Note that predictions will only be available once the training and validation plots are visible**")
+                            ],style={"font-size": "12px", "text-align": "justify", "font-style": "italic"}
+                            ),
                         html.Div(children={}, id='dropdown-container'),
                         dbc.Button(children = {}, id="button", disabled=True, n_clicks=0),
                         html.Div(id='output-vector'),
