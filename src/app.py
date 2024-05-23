@@ -450,7 +450,7 @@ def make_ftimp_analysis(df,target):
 
     return serialize_model(rf_regressor), fig
 
-def make_eval_predictors(df,target):
+def make_train_curve(df,target):
     #Train and test are defined to have a ratio 80-20; RandomForestRegressor is the model used
     #Validation curve -> Test hyperparameters (n_estimaors) on score, Learning_curve -> Test num of samples on score
     X = df.iloc[:,:-1]  
@@ -462,7 +462,7 @@ def make_eval_predictors(df,target):
     # Learning curve data, neg_mean_squared_error is used for convention (maximizing)
     train_sizes, train_scores, test_scores = learning_curve(model, 
                                                             X_train, y_train, 
-                                                            cv=5, train_sizes=np.linspace(0.1, 1.0, 10), 
+                                                            cv=3, train_sizes=np.linspace(0.1, 1.0, 10), 
                                                             scoring='neg_mean_squared_error')
 
     train_scores_mean = -np.mean(train_scores, axis=1)
@@ -541,6 +541,17 @@ def make_eval_predictors(df,target):
         height = 350
                     )
 
+    print("Exiting...")
+    return Fig1
+
+def make_validation_curve(df,target):
+    #Train and test are defined to have a ratio 80-20; RandomForestRegressor is the model used
+    #Validation curve -> Test hyperparameters (n_estimaors) on score, Learning_curve -> Test num of samples on score
+    X = df.iloc[:,:-1]  
+    y = df[target]
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
+    model = RandomForestRegressor()
 
     # Validation curve data
     param_range = np.arange(1, 201, 20)
@@ -625,7 +636,7 @@ def make_eval_predictors(df,target):
                     )
     
     print("Exiting...")
-    return fig, Fig1
+    return fig
 
 variables = { #{Key:Values} to create dynamic dropdowns
     'City': ['City_Mandalay', 'City_Naypyitaw', 'City_Yangon'], 
@@ -655,21 +666,29 @@ tab1 = dbc.Tab([
                         html.P(["Welcome to this Supermarket Sales Dashboard! This project is built using the Python library of Dash \
                             and uses the dataset of the historical sales from a supermarket company. This dash app analyzes the records \
                             from three branches over three months and provides predictions and insights to help users understand \
-                            store performance better. Please refer to the external links at the bottom for more details."]),
+                            store performance better. Please refer to the external links at the bottom for more details."],
+                            style={"font-size": "12px", "text-align": "justify", "font-style": "italic"}),
                         html.Br(),    
                         html.P(["This particular tab utilizes a Random Forest Regressor technique to analize feature importance, visualize training and validation curves, \
                             and input predictor values for making predictions. The feature importance section ranks the variable's impact on the model's output \
                             (i.e. when making predictions); the curves provide insights into model performance during training and validation. \
                             The dropdown menus below adjust automatically based on variable selection.", 
-                            dcc.Markdown("**Note that predictions will only be available once the training and validation plots are visible**")
+                            dcc.Markdown("**Note that predictions will only be available once the training and validation plots are visible, and ALL the dropdowns bellow\
+                                have a value selected**")
                             ],style={"font-size": "12px", "text-align": "justify", "font-style": "italic"}
                             ),
                         html.Div(children={}, id='dropdown-container'),
                         dbc.Button(children = {}, id="button", disabled=True, n_clicks=0),
-                        html.Div(id='output-vector'),
+                        dcc.Loading(id="loading-prediction",
+                                            type="default",
+                                            children= html.Div(id='output-vector'),
+                                            ),
                         html.Hr(),
                         html.Div("Predictors:"),
-                        html.Div(id="output-variables"),
+                        dcc.Loading(id="loading-predictors",
+                                            type="default",
+                                            children= html.Div(id="output-variables"),
+                                            ),
                         dcc.Store(id='store-trained-model'),
                             ]
                         ,width= 3),
@@ -706,28 +725,31 @@ tab1 = dbc.Tab([
                                 ]),
                         dbc.Row([ # ML Plots
                             dbc.Col([ #Feature Importance
-                                dcc.Graph(id = "feature_importance_plot",
-                                         figure = {}                            
-                                          )
+                                dcc.Loading(id="loading-ftipm",
+                                            type="default",
+                                            children= dcc.Graph(id = "feature_importance_plot",
+                                                                figure = {}                            
+                                                                ),
+                                           )
                                     ], width= 7,className="my-0"),
                             dbc.Col([#Val & Training Curves
                                   html.Div([
                                         dbc.Button("Update Model ", id="update-button", color="primary")],
                                         className="d-grid gap-2",
                                           ),
-                                  html.P("↓ Validation & Training Curves ↓", 
+                                  html.P("↓ Learning & Validation Curves ↓", 
                                          className="text-success",
                                          style={'text-align': 'center'}),
                                   dcc.Loading(id="loading-1",
                                             type="default",
-                                            children= dcc.Graph(id = "validation_curve",
+                                            children= dcc.Graph(id = "learning_curve",
                                                           figure = {}                            
                                                          ),
                                             ),
                                     html.Div(
                                         dcc.Loading(id="loading-2",
                                             type="default",
-                                            children= dcc.Graph(id = "learning_curve",
+                                            children= dcc.Graph(id = "validation_curve",
                                                           figure = {}                            
                                                          ),
                                                     ),
@@ -744,7 +766,7 @@ tabs = dbc.Card(dbc.Tabs([tab1, tab2, tab3, tab4, tab5], style={'font-style': 'i
 
 app =  dash.Dash(__name__, 
                  external_stylesheets= [dbc.themes.FLATLY, dbc.icons.FONT_AWESOME, dbc_css],)
-server = app.server
+#server = app.server
 app.layout = dbc.Container(style={'padding': '50px'},
     children=[
             header,
@@ -996,8 +1018,8 @@ def create_ftimp_plot(n_clicks, cat_columns, target):
     return make_ftimp_analysis(dff, target)
 
 # Curves
+# Curves
 @callback(
-    Output("validation_curve", "figure"),
     Output("learning_curve", "figure"),
     Input("update-button", "n_clicks"),
     State("ftimp_dpdn_vars", "value"),
@@ -1017,7 +1039,22 @@ def create_predictors_plot(n_clicks, cat_columns, target, stored_data):
 
 
     dff = data_encoding(cat_columns, target)
-    return make_eval_predictors(dff, target)
+    return make_train_curve(dff, target)
+
+
+@callback(
+    Output("validation_curve", "figure"),
+    Input("ftimp_dpdn_vars", "value"),
+    Input("ftimp_radio_target", "value"),
+)
+def create_predictors_plot(cat_columns, target):
+
+    if cat_columns is []:
+        raise PreventUpdate()
+
+
+    dff = data_encoding(cat_columns, target)
+    return make_validation_curve(dff, target)
 
 ######################
 @callback(
@@ -1097,4 +1134,4 @@ def update_output(n_clicks, model, target, selected_keys, selected_values, selec
 
 
 if __name__=='__main__':
-    app.run_server()
+    app.run_server(debug=True, port=8050)
