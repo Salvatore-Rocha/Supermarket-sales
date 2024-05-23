@@ -20,14 +20,17 @@ Here is a preview of the prediction tab of the app and the sales overview on the
 ![Prediction Tab](https://github.com/Salvatore-Rocha/Supermarket-sales/blob/3e39c4f5880c260cf61c87e0c0a732c44d8a2191/Imgs/Sales_Dashboard_Ex1.jpg)
 ![Sales OVerview](https://github.com/Salvatore-Rocha/Supermarket-sales/blob/3e39c4f5880c260cf61c87e0c0a732c44d8a2191/Imgs/Sales_Dashboard_Ex2.jpg)
 
-Features
-1. Store Rating and Sales Predictions
+## Features
+### 1. Store Rating and Sales Predictions
+
 This dashboard predicts store rating (on a scale from 1 to 10) and total sales using a trained "Random Forest Regressor" model. Users can decide which categorical variables to include, and the model will generate predictions based on these inputs.
 
-2. Feature Importance Evaluation
+### 2. Feature Importance Evaluation
+
 The app also evaluates and displays the importance of the input features, helping users understand which variables most impact store ratings and sales.
 
-3. Training and Validation Curves
+### 3. Training and Validation Curves
+
 To visualizse the model's effectiveness, the app provide both training and validation curves:
 
 Training Curve: Shows the model's performance on the training dataset over iterations, indicating how well the model learns from the data.
@@ -35,7 +38,8 @@ Validation Curve: Illustrates the model's performance on a separate validation d
 
 The comparison between these curves helps identify potential issues like overfitting (good performance on training data but poor on validation data) or underfitting (poor performance on both).
 
-4. Data Segmentation and Visualization
+### 4. Data Segmentation and Visualization
+
 The app includes four interactive tabs, each performing data transformation and constructing visualizations to provide insights into different aspects of the sales data:
 
 Sales Segmentation: Analyze how sales vary across different stores and overall.
