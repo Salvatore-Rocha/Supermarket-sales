@@ -731,7 +731,7 @@ tabs = dbc.Card(dbc.Tabs([tab1, tab2, tab3, tab4, tab5], style={'font-style': 'i
 
 app =  dash.Dash(__name__, 
                  external_stylesheets= [dbc.themes.FLATLY, dbc.icons.FONT_AWESOME, dbc_css],)
-#server = app.server
+server = app.server
 app.layout = dbc.Container(style={'padding': '50px'},
     children=[
             header,
@@ -1084,4 +1084,4 @@ def update_output(n_clicks, model, target, selected_keys, selected_values, selec
 
 
 if __name__=='__main__':
-    app.run_server(debug=True, port=8050)
+    app.run_server()
