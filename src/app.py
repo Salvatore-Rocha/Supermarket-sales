@@ -645,7 +645,10 @@ tab1 = dbc.Tab([
                         html.H3("On-the-Fly: Feature Impact and Model Analysis", 
                                 className="text-success",
                                 style={"font-weight": "bold"}),
-                        html.P(["This tab utilizes a Random Forest Regressor technique to analize feature importance, visualize training and validation curves, \
+                        html.P(["Welcome to this Supermarket Sales Dashboard! This project is built using the Python library of Dash \
+                            and uses the dataset of the historical sales from a supermarket company. This dash app analyzes the records \
+                            from three branches over three months and provides predictions and insights to help users understand store performance better. \
+                            This particular tab utilizes a Random Forest Regressor technique to analize feature importance, visualize training and validation curves, \
                             and input predictor values for making predictions. The feature importance section ranks the variable's impact on the model's output \
                             (i.e. when making predictions); the curves provide insights into model performance during training and validation. \
                             The dropdown menus below adjust automatically based on variable selection.", 
