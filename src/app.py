@@ -462,7 +462,7 @@ def make_train_curve(df,target):
     # Learning curve data, neg_mean_squared_error is used for convention (maximizing)
     train_sizes, train_scores, test_scores = learning_curve(model, 
                                                             X_train, y_train, 
-                                                            cv=3, train_sizes=np.linspace(0.1, 1.0, 10), 
+                                                            cv=3, train_sizes=np.linspace(0.1, 1.0, 5), 
                                                             scoring='neg_mean_squared_error')
 
     train_scores_mean = -np.mean(train_scores, axis=1)
