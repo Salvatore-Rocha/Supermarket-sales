@@ -1,4 +1,4 @@
-#  Supermarket Sales Dashboard: Metrics of Myanmar HUB
+#  Supermarket Sales Dashboard: Predicting and visualizing Metrics of Myanmar HUB
 
 Welcome to this Supermarket Sales Dashboard! 
 This project is built using the Python library of Dash and uses the dataset of the historical sales from a supermarket company. This dash app analyzes the records from three branches over three months and provides predictions and insights to help users understand store performance better.
