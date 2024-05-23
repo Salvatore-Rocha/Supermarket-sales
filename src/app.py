@@ -554,7 +554,7 @@ def make_validation_curve(df,target):
     model = RandomForestRegressor()
 
     # Validation curve data
-    param_range = np.arange(1, 201, 20)
+    param_range = np.arange(1, 201, 40)
     train_scores, test_scores = validation_curve(
         model, X_train, y_train, param_name="n_estimators", param_range=param_range,
         cv=5, scoring="neg_mean_squared_error")
